@@ -149,29 +149,30 @@ void AudioEffectSpectrumAnalyzerInstance::process(const AudioFrame *p_src_frames
 
 void AudioEffectSpectrumAnalyzerInstance::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("get_magnitude_for_frequency_range", "from_hz", "to_hz", "mode"), &AudioEffectSpectrumAnalyzerInstance::get_magnitude_for_frequency_range, DEFVAL(MAGNITUDE_MAX));
+	ClassDB::bind_method(D_METHOD("get_magnitude_for_frequency_range", "from_hz", "to_hz", "mode", "bin_offset"), &AudioEffectSpectrumAnalyzerInstance::get_magnitude_for_frequency_range, DEFVAL(MAGNITUDE_MAX), DEFVAL(0));
 	BIND_ENUM_CONSTANT(MAGNITUDE_AVERAGE);
 	BIND_ENUM_CONSTANT(MAGNITUDE_MAX);
 }
 
-Vector2 AudioEffectSpectrumAnalyzerInstance::get_magnitude_for_frequency_range(float p_begin, float p_end, MagnitudeMode p_mode) const {
+Vector2 AudioEffectSpectrumAnalyzerInstance::get_magnitude_for_frequency_range(float p_begin, float p_end, MagnitudeMode p_mode, int bin_offset) const {
 
 	if (last_fft_time == 0) {
 		return Vector2();
 	}
 	uint64_t time = OS::get_singleton()->get_ticks_usec();
-	float diff = double(time - last_fft_time) / 1000000.0 + base->get_tap_back_pos();
-	diff -= AudioServer::get_singleton()->get_output_latency();
+	float current_time = double(time) / 1000000.0 + base->get_tap_back_pos();
+	current_time -= AudioServer::get_singleton()->get_output_latency();
+	float fft_time = double(last_fft_time) / 1000000.0;
 	float fft_time_size = float(fft_size) / mix_rate;
+	fft_time += fft_time_size * float(fft_count);
+
+	float diff = fft_time - current_time;
 
 	int fft_index = fft_pos;
 
 	while (diff > fft_time_size) {
 		diff -= fft_time_size;
-		fft_index -= 1;
-		if (fft_index < 0) {
-			fft_index = fft_count - 1;
-		}
+		fft_index = (fft_index - 1 + fft_count) % fft_count;
 	}
 
 	int begin_pos = p_begin * fft_size / (mix_rate * 0.5);
@@ -183,29 +184,37 @@ Vector2 AudioEffectSpectrumAnalyzerInstance::get_magnitude_for_frequency_range(f
 	if (begin_pos > end_pos) {
 		SWAP(begin_pos, end_pos);
 	}
-	const AudioFrame *r = fft_history[fft_index].ptr();
 
-	if (p_mode == MAGNITUDE_AVERAGE) {
-		Vector2 avg;
+	Vector2 value;
+	int count = bin_offset;
+	for (int j = 0; j < count; ++j) {
+		const AudioFrame *r = fft_history[(fft_index - j + fft_count) % fft_count].ptr();
 
-		for (int i = begin_pos; i <= end_pos; i++) {
-			avg += Vector2(r[i]);
+		if (p_mode == MAGNITUDE_AVERAGE) {
+			Vector2 avg;
+
+			for (int i = begin_pos; i <= end_pos; i++) {
+				avg += Vector2(r[i]);
+			}
+
+			avg /= float(end_pos - begin_pos + 1);
+
+			value += avg;
+		} else {
+
+			Vector2 max;
+
+			for (int i = begin_pos; i <= end_pos; i++) {
+				max.x = MAX(max.x, r[i].l);
+				max.y = MAX(max.y, r[i].r);
+			}
+
+			value += max;
 		}
-
-		avg /= float(end_pos - begin_pos + 1);
-
-		return avg;
-	} else {
-
-		Vector2 max;
-
-		for (int i = begin_pos; i <= end_pos; i++) {
-			max.x = MAX(max.x, r[i].l);
-			max.y = MAX(max.y, r[i].r);
-		}
-
-		return max;
 	}
+
+	value /= count;
+	return value;
 }
 
 Ref<AudioEffectInstance> AudioEffectSpectrumAnalyzer::instance() {
@@ -217,6 +226,7 @@ Ref<AudioEffectInstance> AudioEffectSpectrumAnalyzer::instance() {
 	ins->fft_size = fft_sizes[fft_size];
 	ins->mix_rate = AudioServer::get_singleton()->get_mix_rate();
 	ins->fft_count = (buffer_length / (float(ins->fft_size) / ins->mix_rate)) + 1;
+	ins->fft_count *= 1;
 	ins->fft_pos = 0;
 	ins->last_fft_time = 0;
 	ins->fft_history.resize(ins->fft_count);
