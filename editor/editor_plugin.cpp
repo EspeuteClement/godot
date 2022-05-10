@@ -242,6 +242,10 @@ String EditorInterface::get_selected_path() const {
 	return FileSystemDock::get_singleton()->get_selected_path();
 }
 
+Vector<String> EditorInterface::get_selected_paths() {
+	return FileSystemDock::get_singleton()->get_selected_paths();
+}
+
 String EditorInterface::get_current_path() const {
 	return FileSystemDock::get_singleton()->get_current_path();
 }
@@ -349,6 +353,7 @@ void EditorInterface::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("make_mesh_previews", "meshes", "preview_size"), &EditorInterface::_make_mesh_previews);
 	ClassDB::bind_method(D_METHOD("select_file", "file"), &EditorInterface::select_file);
 	ClassDB::bind_method(D_METHOD("get_selected_path"), &EditorInterface::get_selected_path);
+	ClassDB::bind_method(D_METHOD("get_selected_paths"), &EditorInterface::get_selected_paths);
 	ClassDB::bind_method(D_METHOD("get_current_path"), &EditorInterface::get_current_path);
 	ClassDB::bind_method(D_METHOD("get_file_system_dock"), &EditorInterface::get_file_system_dock);
 	ClassDB::bind_method(D_METHOD("get_editor_paths"), &EditorInterface::get_editor_paths);
