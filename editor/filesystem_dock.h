@@ -316,6 +316,7 @@ protected:
 
 public:
 	String get_selected_path() const;
+	Vector<String> get_selected_paths();
 
 	String get_current_path() const;
 	void navigate_to_path(const String &p_path);

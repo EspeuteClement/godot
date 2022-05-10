@@ -518,6 +518,11 @@ String FileSystemDock::get_selected_path() const {
 	}
 }
 
+Vector<String> FileSystemDock::get_selected_paths()
+{
+	return _tree_get_selected(false);
+}
+
 String FileSystemDock::get_current_path() const {
 	return path;
 }

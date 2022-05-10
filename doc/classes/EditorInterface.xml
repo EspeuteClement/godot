@@ -137,6 +137,12 @@
 				Returns the path of the directory currently selected in the [FileSystemDock]. If a file is selected, its base directory will be returned using [method String.get_base_dir] instead.
 			</description>
 		</method>
+		<method name="get_selected_paths">
+			<return type="PackedStringArray" />
+			<description>
+				Returns an array containing all the paths of the currently selected files (and directories) in the [FileSystemDock].
+			</description>
+		</method>
 		<method name="get_selection">
 			<return type="EditorSelection" />
 			<description>
